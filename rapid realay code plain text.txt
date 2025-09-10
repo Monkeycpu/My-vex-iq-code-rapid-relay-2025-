@@ -1,0 +1,167 @@
+#region VEXcode Generated Robot Configuration
+from vex import *
+import urandom
+
+# Brain should be defined by default
+brain=Brain()
+
+# Robot configuration code
+brain_inertial = Inertial()
+left_drive_smart = Motor(Ports.PORT6, 1.0, True)
+right_drive_smart = Motor(Ports.PORT12, 1.0, False)
+drivetrain_gyro = Gyro(Ports.PORT10)
+drivetrain = SmartDrive(left_drive_smart, right_drive_smart, drivetrain_gyro, 160)
+controller = Controller()
+IntakeMotor = Motor(Ports.PORT8, False)
+CatapultGroup_motor_a = Motor(Ports.PORT1, False)
+CatapultGroup_motor_b = Motor(Ports.PORT7, True)
+CatapultGroup = MotorGroup(CatapultGroup_motor_a, CatapultGroup_motor_b)
+touchled_9 = Touchled(Ports.PORT9)
+
+
+
+# generating and setting random seed
+def initializeRandomSeed():
+    wait(100, MSEC)
+    xaxis = brain_inertial.acceleration(XAXIS) * 1000
+    yaxis = brain_inertial.acceleration(YAXIS) * 1000
+    zaxis = brain_inertial.acceleration(ZAXIS) * 1000
+    systemTime = brain.timer.system() * 100
+    urandom.seed(int(xaxis + yaxis + zaxis + systemTime)) 
+    
+# Initialize random seed 
+initializeRandomSeed()
+
+vexcode_initial_drivetrain_calibration_completed = False
+def calibrate_drivetrain():
+    # Calibrate the Drivetrain Gyro
+    global vexcode_initial_drivetrain_calibration_completed
+    sleep(200, MSEC)
+    brain.screen.print("Calibrating")
+    brain.screen.next_row()
+    brain.screen.print("Gyro")
+    drivetrain_gyro.calibrate(GyroCalibrationType.NORMAL)
+    while drivetrain_gyro.is_calibrating():
+        sleep(25, MSEC)
+    vexcode_initial_drivetrain_calibration_completed = True
+    brain.screen.clear_screen()
+    brain.screen.set_cursor(1, 1)
+
+
+# Calibrate the Drivetrain
+calibrate_drivetrain()
+
+
+
+# define variables used for controlling motors based on controller inputs
+controller_left_shoulder_control_motors_stopped = True
+drivetrain_needs_to_be_stopped_controller = False
+
+# define a task that will handle monitoring inputs from controller
+def rc_auto_loop_function_controller():
+    global drivetrain_needs_to_be_stopped_controller, controller_left_shoulder_control_motors_stopped, remote_control_code_enabled
+    # process the controller input every 20 milliseconds
+    # update the motors based on the input values
+    while True:
+        if remote_control_code_enabled:
+            
+            # calculate the drivetrain motor velocities from the controller joystick axies
+            # left = axisA + axisB
+            # right = axisA - axisB
+            drivetrain_left_side_speed = controller.axisA.position() + controller.axisB.position()
+            drivetrain_right_side_speed = controller.axisA.position() - controller.axisB.position()
+            
+            # check if the values are inside of the deadband range
+            if abs(drivetrain_left_side_speed) < 5 and abs(drivetrain_right_side_speed) < 5:
+                # check if the motors have already been stopped
+                if drivetrain_needs_to_be_stopped_controller:
+                    # stop the drive motors
+                    left_drive_smart.stop()
+                    right_drive_smart.stop()
+                    # tell the code that the motors have been stopped
+                    drivetrain_needs_to_be_stopped_controller = False
+            else:
+                # reset the toggle so that the deadband code knows to stop the motors next
+                # time the input is in the deadband range
+                drivetrain_needs_to_be_stopped_controller = True
+            
+            # only tell the left drive motor to spin if the values are not in the deadband range
+            if drivetrain_needs_to_be_stopped_controller:
+                left_drive_smart.set_velocity(drivetrain_left_side_speed, PERCENT)
+                left_drive_smart.spin(FORWARD)
+            # only tell the right drive motor to spin if the values are not in the deadband range
+            if drivetrain_needs_to_be_stopped_controller:
+                right_drive_smart.set_velocity(drivetrain_right_side_speed, PERCENT)
+                right_drive_smart.spin(FORWARD)
+            # check the buttonLUp/buttonLDown status
+            # to control IntakeMotor
+            if controller.buttonLUp.pressing():
+                IntakeMotor.spin(FORWARD)
+                controller_left_shoulder_control_motors_stopped = False
+            elif controller.buttonLDown.pressing():
+                IntakeMotor.spin(REVERSE)
+                controller_left_shoulder_control_motors_stopped = False
+            elif not controller_left_shoulder_control_motors_stopped:
+                IntakeMotor.stop()
+                # set the toggle so that we don't constantly tell the motor to stop when
+                # the buttons are released
+                controller_left_shoulder_control_motors_stopped = True
+        # wait before repeating the process
+        wait(20, MSEC)
+
+# define variable for remote controller enable/disable
+remote_control_code_enabled = True
+
+rc_auto_loop_thread_controller = Thread(rc_auto_loop_function_controller)
+
+#endregion VEXcode Generated Robot Configuration
+
+vexcode_brain_precision = 0
+vexcode_console_precision = 0
+myVariable = 0
+catipult = False
+
+def when_started1():
+    global myVariable, catipult, vexcode_brain_precision, vexcode_console_precision
+    drivetrain.set_drive_velocity(225, PERCENT)
+    drivetrain.set_turn_velocity(20039, PERCENT)
+    CatapultGroup.set_max_torque(150, PERCENT)
+    CatapultGroup.set_velocity(150, PERCENT)
+    IntakeMotor.set_velocity(150, PERCENT)
+    brain.screen.print("Nanoshork")
+    touchled_9.set_color(Color.PURPLE)
+
+def onevent_touchled_9_pressed_0():
+    global myVariable, catipult, vexcode_brain_precision, vexcode_console_precision
+    brain.play_sound(SoundType.TOLLBOOTH)
+    brain.play_sound(SoundType.TOLLBOOTH)
+    touchled_9.set_color(Color.PURPLE)
+
+def onevent_controllerbuttonRDown_pressed_0():
+    global myVariable, catipult, vexcode_brain_precision, vexcode_console_precision
+    catipult = True
+    CatapultGroup.spin(REVERSE)
+    wait(2.2, SECONDS)
+    CatapultGroup.stop()
+
+def onevent_controllerbuttonEUp_pressed_0():
+    global myVariable, catipult, vexcode_brain_precision, vexcode_console_precision
+    for repeat_count in range(5):
+        brain.play_sound(SoundType.WRONG_WAY)
+        wait(20, MSEC)
+
+def onevent_controllerbuttonFUp_pressed_0():
+    global myVariable, catipult, vexcode_brain_precision, vexcode_console_precision
+    catipult = False
+    CatapultGroup.spin(FORWARD)
+    wait(1, SECONDS)
+
+# system event handlers
+touchled_9.pressed(onevent_touchled_9_pressed_0)
+controller.buttonRDown.pressed(onevent_controllerbuttonRDown_pressed_0)
+controller.buttonEUp.pressed(onevent_controllerbuttonEUp_pressed_0)
+controller.buttonFUp.pressed(onevent_controllerbuttonFUp_pressed_0)
+# add 15ms delay to make sure events are registered correctly.
+wait(15, MSEC)
+
+when_started1()
